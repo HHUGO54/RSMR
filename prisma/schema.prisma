@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      String   @default("USER")
+  createdAt DateTime @default(now())
+}
+
+model Activo {
+  id               Int     @id @default(autoincrement())
+  nombre           String
+  fechaNac         String?
+  seccion          Int?
+  distrito         Int
+  domicilio        String?
+  correo           String?
+  telefono         String?
+  indicador        String?
+  variableAsignada     String?
+  movilizacionAsignada String?
+}
+
+model Rayado {
+  id        Int     @id @default(autoincrement())
+  nombre    String
+  fechaNac  String?
+  seccion   Int?
+  distrito  Int     @default(9)
+  domicilio String?
+  correo    String?
+  telefono  String?
+  fecha     String?
+  monto     String?
+  notas     String?
+}
+
+model Movilizador {
+  id        Int     @id @default(autoincrement())
+  nombre    String
+  variable  String?
+  notas     String?
+}
+
+model EquipoCompromiso {
+  id       Int     @id @default(autoincrement())
+  variable String
+  notas    String?
+  tareas   Tarea[]
+}
+
+model Tarea {
+  id         Int              @id @default(autoincrement())
+  texto      String
+  nota       String?
+  completada Boolean          @default(false)
+  equipoId   Int
+  equipo     EquipoCompromiso @relation(fields: [equipoId], references: [id], onDelete: Cascade)
+}
+
+model SeccionRecorrida {
+  seccion   Int     @id
+  recorrida Boolean @default(false)
+}
+
+model Evento {
+  id          Int      @id @default(autoincrement())
+  titulo      String
+  fecha       String
+  hora        String?
+  lugar       String?
+  descripcion String?
+  responsable String?
+  contacto    String?
+  telefono    String?
+}
+
+model Aspirante {
+  id        Int     @id @default(autoincrement())
+  nombre    String
+  fechaNac  String?
+  seccion   Int?
+  distrito  Int     @default(9)
+  domicilio String?
+  correo    String?
+  telefono  String?
+  variable  String?
+  notas     String?
+}
