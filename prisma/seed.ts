@@ -6,7 +6,8 @@ import fs from "fs";
 import path from "path";
 
 const url = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
-const adapter = new PrismaLibSql({ url });
+const authToken = process.env.DATABASE_AUTH_TOKEN;
+const adapter = new PrismaLibSql({ url, ...(authToken ? { authToken } : {}) });
 const prisma = new PrismaClient({ adapter });
 
 function parseCSV(content: string) {
