@@ -228,7 +228,7 @@ export default function MapaClient() {
             lyr.on("mouseout",  () => layer.resetStyle(lyr as L.Path));
             lyr.on("click", () => {
               layer.resetStyle();
-              (lyr as L.Path).setStyle({ fillColor: "#fbbf24", fillOpacity: 0.9, color: "#92400e", weight: 3 });
+              (lyr as L.Path).setStyle({ fillColor: "#bae6fd", fillOpacity: 0.5, color: "#0284c7", weight: 2.5 });
               setBusqueda(String(seccion));
               setNoEncontrada(false);
               setSeccionNum(seccion);
@@ -258,7 +258,7 @@ export default function MapaClient() {
       if (path.feature?.properties?.SECCION === num) {
         encontrado = true;
         layerRef.current!.resetStyle();
-        path.setStyle({ fillColor: "#fbbf24", fillOpacity: 0.9, color: "#92400e", weight: 3 });
+        path.setStyle({ fillColor: "#bae6fd", fillOpacity: 0.5, color: "#0284c7", weight: 2.5 });
         const bounds = (lyr as L.Polygon).getBounds?.();
         if (bounds?.isValid()) mapRef.current!.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
         setSeccionNum(num);
@@ -307,6 +307,8 @@ export default function MapaClient() {
     const centerLng = (minLng + maxLng) / 2;
     const cosLat    = Math.cos((centerLat * Math.PI) / 180);
 
+    console.log("[mapa] bounds:", { minLng, maxLng, minLat, maxLat, centerLat, centerLng, cosLat });
+
     const W = 1600, H = 900;
 
     const lng2tx = (lng: number, z: number) => ((lng + 180) / 360) * Math.pow(2, z);
@@ -345,6 +347,7 @@ export default function MapaClient() {
     const r1Tiles = range1 * Math.pow(2, zoom) / (360 * cosLat);
     const r2Tiles = range2 * Math.pow(2, zoom) / (360 * cosLat);
     const pxPerTile = Math.min((H * 0.9) / (r1Tiles * 256), (W * 0.9) / (r2Tiles * 256)) * 256;
+    console.log("[mapa] range1:", range1, "range2:", range2, "zoomF:", zoomF, "zoom:", zoom, "pxPerTile:", pxPerTile);
 
     // ── Cuadrícula de tiles necesaria (canvas rotado) ────────────────
     const cTX = lng2tx(centerLng, zoom);

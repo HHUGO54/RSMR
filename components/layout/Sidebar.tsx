@@ -21,6 +21,7 @@ import {
   ChevronDown,
   LogOut,
   X,
+  ShieldCheck,
 } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
 
@@ -28,6 +29,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/activos", label: "Activos", icon: Users },
   { href: "/calendario", label: "Calendario", icon: CalendarDays },
+  { href: "/usuarios", label: "Usuarios", icon: ShieldCheck },
 ];
 
 const compromisosItems = [
