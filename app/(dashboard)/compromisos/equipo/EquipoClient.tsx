@@ -72,7 +72,7 @@ function Modal({ initial, title, onClose, onSave }: {
   );
 }
 
-export default function EquipoClient({ equipo }: { equipo: Item[] }) {
+export default function EquipoClient({ equipo, isAdmin }: { equipo: Item[]; isAdmin: boolean }) {
   const router = useRouter();
   const [modal, setModal] = useState<{ mode: "new" } | { mode: "edit"; item: Item } | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
@@ -127,12 +127,14 @@ export default function EquipoClient({ equipo }: { equipo: Item[] }) {
             {equipo.length} {equipo.length === 1 ? "registro" : "registros"}
           </p>
         </div>
-        <button
-          onClick={() => setModal({ mode: "new" })}
-          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-colors"
-        >
-          <Plus size={18} /> Agregar
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setModal({ mode: "new" })}
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-colors"
+          >
+            <Plus size={18} /> Agregar
+          </button>
+        )}
       </div>
 
       {equipo.length === 0 ? (
@@ -152,14 +154,16 @@ export default function EquipoClient({ equipo }: { equipo: Item[] }) {
                   <p className="text-xs font-medium text-blue-500 mb-0.5">Variable</p>
                   <p className="text-sm font-semibold text-blue-800">{m.variable}</p>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={() => setModal({ mode: "edit", item: m })} className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:text-blue-600 hover:border-blue-200 transition-colors">
-                    <Pencil size={13} />
-                  </button>
-                  <button onClick={() => handleDelete(m.id)} disabled={deleting === m.id} className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-40">
-                    <Trash2 size={13} />
-                  </button>
-                </div>
+                {isAdmin && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={() => setModal({ mode: "edit", item: m })} className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:text-blue-600 hover:border-blue-200 transition-colors">
+                      <Pencil size={13} />
+                    </button>
+                    <button onClick={() => handleDelete(m.id)} disabled={deleting === m.id} className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-40">
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                )}
               </div>
               {m.notas && <p className="text-xs text-gray-400 italic leading-relaxed">{m.notas}</p>}
             </div>

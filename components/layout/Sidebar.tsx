@@ -55,9 +55,10 @@ const movilizacionItems = [
   { href: "/movilizacion/grafica", label: "Gráfica", icon: BarChart2 },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ role }: { role: string }) {
   const pathname = usePathname();
   const { close } = useSidebar();
+  const isAdmin = role === "ADMIN";
 
   const isActive = (href: string) =>
     pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
@@ -132,7 +133,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-        {navItems.map(({ href, label, icon: Icon }) => (
+        {navItems.filter(item => item.href !== "/usuarios" || isAdmin).map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}

@@ -5,7 +5,7 @@ import { Menu } from "lucide-react";
 import { SidebarContext } from "./SidebarContext";
 import Sidebar from "./Sidebar";
 
-export default function DashboardShell({ children }: { children: React.ReactNode }) {
+export default function DashboardShell({ children, role }: { children: React.ReactNode; role: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const toggle = () => setIsOpen((p) => !p);
   const close = () => setIsOpen(false);
@@ -27,7 +27,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             isOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
-          <Sidebar />
+          <Sidebar role={role} />
         </div>
 
         {/* Contenido */}

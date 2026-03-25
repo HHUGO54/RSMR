@@ -13,6 +13,7 @@ interface Aspirante {
 
 interface Props {
   aspirantes: Aspirante[];
+  isAdmin: boolean;
 }
 
 interface FormState {
@@ -114,7 +115,7 @@ function Modal({
   );
 }
 
-export default function AspirantesClient({ aspirantes }: Props) {
+export default function AspirantesClient({ aspirantes, isAdmin }: Props) {
   const router = useRouter();
   const [modal, setModal] = useState<{ mode: "new" } | { mode: "edit"; item: Aspirante } | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
@@ -185,13 +186,15 @@ export default function AspirantesClient({ aspirantes }: Props) {
             {aspirantes.length} {aspirantes.length === 1 ? "registro" : "registros"}
           </p>
         </div>
-        <button
-          onClick={() => setModal({ mode: "new" })}
-          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-colors"
-        >
-          <Plus size={18} />
-          Agregar
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setModal({ mode: "new" })}
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-colors"
+          >
+            <Plus size={18} />
+            Agregar
+          </button>
+        )}
       </div>
 
       {/* Lista */}
@@ -215,21 +218,23 @@ export default function AspirantesClient({ aspirantes }: Props) {
                   <p className="text-xs font-medium text-blue-500 mb-0.5">Variable</p>
                   <p className="text-sm font-semibold text-blue-800">{a.variable ?? a.nombre}</p>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={() => setModal({ mode: "edit", item: a })}
-                    className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:text-blue-600 hover:border-blue-200 transition-colors"
-                  >
-                    <Pencil size={13} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(a.id)}
-                    disabled={deleting === a.id}
-                    className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-40"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
+                {isAdmin && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => setModal({ mode: "edit", item: a })}
+                      className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:text-blue-600 hover:border-blue-200 transition-colors"
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(a.id)}
+                      disabled={deleting === a.id}
+                      className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-40"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {a.notas && (

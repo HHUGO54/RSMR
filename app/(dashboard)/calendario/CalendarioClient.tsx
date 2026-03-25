@@ -106,8 +106,8 @@ function Modal({ initial, title, onClose, onSave }: {
   );
 }
 
-function EventoDetalle({ evento, onEdit, onDelete, onClose }: {
-  evento: Evento; onEdit: () => void; onDelete: () => void; onClose: () => void;
+function EventoDetalle({ evento, onEdit, onDelete, onClose, isAdmin }: {
+  evento: Evento; onEdit: () => void; onDelete: () => void; onClose: () => void; isAdmin: boolean;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40">
@@ -158,12 +158,16 @@ function EventoDetalle({ evento, onEdit, onDelete, onClose }: {
           )}
         </div>
         <div className="flex justify-between items-center px-5 pb-5">
-          <button onClick={onDelete} className="flex items-center gap-1.5 rounded-xl border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
-            <Trash2 size={14} /> Eliminar
-          </button>
-          <button onClick={onEdit} className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
-            <Pencil size={14} /> Editar
-          </button>
+          {isAdmin ? (
+            <button onClick={onDelete} className="flex items-center gap-1.5 rounded-xl border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+              <Trash2 size={14} /> Eliminar
+            </button>
+          ) : <div />}
+          {isAdmin && (
+            <button onClick={onEdit} className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
+              <Pencil size={14} /> Editar
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -206,7 +210,7 @@ function Countdown() {
   );
 }
 
-export default function CalendarioClient({ eventosInit }: { eventosInit: Evento[] }) {
+export default function CalendarioClient({ eventosInit, isAdmin }: { eventosInit: Evento[]; isAdmin: boolean }) {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
@@ -288,6 +292,7 @@ export default function CalendarioClient({ eventosInit }: { eventosInit: Evento[
       {detalle && !modal && (
         <EventoDetalle
           evento={detalle}
+          isAdmin={isAdmin}
           onClose={() => setDetalle(null)}
           onEdit={() => { setModal({ mode: "edit", evento: detalle }); setDetalle(null); }}
           onDelete={() => handleDelete(detalle.id)}
@@ -300,12 +305,14 @@ export default function CalendarioClient({ eventosInit }: { eventosInit: Evento[
           <h1 className="text-2xl font-bold text-gray-900">Calendario</h1>
           <p className="text-sm text-gray-500 mt-0.5">Distrito 09</p>
         </div>
-        <button
-          onClick={() => setModal({ mode: "new", fecha: todayStr })}
-          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-colors"
-        >
-          <Plus size={16} /> Nuevo evento
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setModal({ mode: "new", fecha: todayStr })}
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-colors"
+          >
+            <Plus size={16} /> Nuevo evento
+          </button>
+        )}
       </div>
 
       {/* Navegación mes */}
@@ -335,8 +342,8 @@ export default function CalendarioClient({ eventosInit }: { eventosInit: Evento[
             return (
               <div
                 key={i}
-                onClick={() => setModal({ mode: "new", fecha: toDateStr(day) })}
-                className="h-20 border-b border-r border-gray-100 p-1.5 cursor-pointer hover:bg-blue-50/40 transition-colors flex flex-col"
+                onClick={isAdmin ? () => setModal({ mode: "new", fecha: toDateStr(day) }) : undefined}
+                className={`h-20 border-b border-r border-gray-100 p-1.5 flex flex-col ${isAdmin ? "cursor-pointer hover:bg-blue-50/40 transition-colors" : ""}`}
               >
                 <span className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full mb-1 ${
                   isToday(day) ? "bg-blue-600 text-white" : "text-gray-700"
