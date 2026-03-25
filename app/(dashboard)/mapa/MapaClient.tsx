@@ -278,19 +278,8 @@ export default function MapaClient() {
   async function buildMapCanvas(): Promise<string | null> {
     if (!layerRef.current || seccionNum === null) return null;
 
-    // ── Web Mercator helpers ──────────────────────────────────────────
-    const TILE = 256;
-    const lngToW = (lng: number, z: number) =>
-      ((lng + 180) / 360) * TILE * Math.pow(2, z);
-    const latToW = (lat: number, z: number) => {
-      const sin = Math.sin((lat * Math.PI) / 180);
-      return (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * TILE * Math.pow(2, z);
-    };
-
     // ── Recolectar polígonos ──────────────────────────────────────────
     const features: Array<{ coords: number[][][]; selected: boolean }> = [];
-    let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
-
     layerRef.current.eachLayer((lyr) => {
       const path = lyr as L.Path & { feature?: GeoJSON.Feature };
       const geom = path.feature?.geometry;
@@ -305,7 +294,8 @@ export default function MapaClient() {
     const sel = features.find((f) => f.selected);
     if (!sel) return null;
 
-    // Bounds de la sección (sin padding — solo para calcular zoom)
+    // ── Bounds de la sección ──────────────────────────────────────────
+    let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
     sel.coords.forEach((ring) =>
       ring.forEach(([lng, lat]) => {
         if (lng < minLng) minLng = lng; if (lng > maxLng) maxLng = lng;
@@ -313,94 +303,144 @@ export default function MapaClient() {
       })
     );
 
-    // ── Zoom: sección ocupa ~45 % del canvas (3×3 tiles = 768 px) ────
-    const avgLat  = (minLat + maxLat) / 2;
-    const latScale = Math.cos((avgLat * Math.PI) / 180);
-    const effectiveLng = Math.max(maxLng - minLng, (maxLat - minLat) / latScale);
-    const zoom = Math.max(12, Math.min(16,
-      Math.round(Math.log2((3 * TILE * 0.45 * 360) / (effectiveLng * TILE)))
-    ));
+    const centerLat = (minLat + maxLat) / 2;
+    const centerLng = (minLng + maxLng) / 2;
+    const cosLat    = Math.cos((centerLat * Math.PI) / 180);
 
-    // ── Cuadrícula 3×3 centrada en el centroide de la sección ────────
-    const cLng = (minLng + maxLng) / 2;
-    const cLat = (minLat + maxLat) / 2;
-    const cTx  = Math.floor(lngToW(cLng, zoom) / TILE);
-    const cTy  = Math.floor(latToW(cLat, zoom) / TILE);
+    const W = 1600, H = 900;
 
-    const txMin = cTx - 1;
-    const txMax = cTx + 1;
-    const tyMin = cTy - 1;
-    const tyMax = cTy + 1;
-
-    const wxMin = txMin * TILE;
-    const wyMin = tyMin * TILE;
-
-    const CW = (txMax - txMin + 1) * TILE;
-    const CH = (tyMax - tyMin + 1) * TILE;
-
-    const canvas = document.createElement("canvas");
-    canvas.width = CW; canvas.height = CH;
-    const ctx = canvas.getContext("2d")!;
-    ctx.fillStyle = "#f0f4f8";
-    ctx.fillRect(0, 0, CW, CH);
-
-    // ── Cargar tiles directo desde Carto (CORS nativo, sin proxy) ────
-    const loadTile = (z: number, x: number, y: number): Promise<HTMLImageElement | null> =>
-      new Promise((resolve) => {
-        const sub = ["a", "b", "c", "d"][x % 4];
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        const timer = setTimeout(() => resolve(null), 6000);
-        img.onload  = () => { clearTimeout(timer); resolve(img); };
-        img.onerror = () => { clearTimeout(timer); resolve(null); };
-        img.src = `https://${sub}.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}.png`;
-      });
-
-    // Cargar en paralelo por fila (balance entre velocidad y estabilidad)
-    for (let ty = tyMin; ty <= tyMax; ty++) {
-      await Promise.all(
-        Array.from({ length: txMax - txMin + 1 }, (_, i) => txMin + i).map(async (tx) => {
-          const img = await loadTile(zoom, tx, ty);
-          if (img) ctx.drawImage(img, (tx - txMin) * TILE, (ty - tyMin) * TILE, TILE, TILE);
-        })
-      );
-    }
-
-    // ── Proyección de polígonos ───────────────────────────────────────
-    const toXY = (lng: number, lat: number) => ({
-      x: lngToW(lng, zoom) - wxMin,
-      y: latToW(lat, zoom) - wyMin,
-    });
-
-    const drawPoly = (coords: number[][][], fill: string, stroke: string, lw: number) => {
-      for (const ring of coords) {
-        ctx.beginPath();
-        const s = toXY(ring[0][0], ring[0][1]);
-        ctx.moveTo(s.x, s.y);
-        for (let i = 1; i < ring.length; i++) {
-          const p = toXY(ring[i][0], ring[i][1]);
-          ctx.lineTo(p.x, p.y);
-        }
-        ctx.closePath();
-        ctx.fillStyle = fill; ctx.fill();
-        ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke();
-      }
+    const lng2tx = (lng: number, z: number) => ((lng + 180) / 360) * Math.pow(2, z);
+    const lat2ty = (lat: number, z: number) => {
+      const r = (lat * Math.PI) / 180;
+      return ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * Math.pow(2, z);
     };
 
-    // Vecinos: borde fino, sin relleno
-    features.forEach((f) => {
-      if (!f.selected) drawPoly(f.coords, "rgba(0,0,0,0)", "#3b82f6", 1.2);
+    // ── PCA: rotación óptima de la sección ───────────────────────────
+    const pts: [number, number][] = [];
+    sel.coords.forEach((ring) =>
+      ring.forEach(([lng, lat]) => pts.push([lng * cosLat, lat]))
+    );
+    const n  = pts.length;
+    const mx = pts.reduce((s, p) => s + p[0], 0) / n;
+    const my = pts.reduce((s, p) => s + p[1], 0) / n;
+    let sxx = 0, sxy = 0, syy = 0;
+    for (const [x, y] of pts) { sxx += (x-mx)**2; sxy += (x-mx)*(y-my); syy += (y-my)**2; }
+    const phi    = Math.atan2(2 * sxy, sxx - syy) / 2;
+    const cosphi = Math.cos(phi), sinphi = Math.sin(phi);
+    const p1 = pts.map(([x, y]) =>  x * cosphi + y * sinphi);
+    const p2 = pts.map(([x, y]) => -x * sinphi + y * cosphi);
+    let range1 = Math.max(...p1) - Math.min(...p1);
+    let range2 = Math.max(...p2) - Math.min(...p2);
+
+    let rotAngle = Math.PI / 2 + phi;
+    while (rotAngle >  Math.PI / 2) rotAngle -= Math.PI;
+    while (rotAngle <= -Math.PI / 2) rotAngle += Math.PI;
+    if (range2 > range1 && W > H) { rotAngle += Math.PI / 2; [range1, range2] = [range2, range1]; }
+    while (rotAngle >  Math.PI / 2) rotAngle -= Math.PI;
+    while (rotAngle <= -Math.PI / 2) rotAngle += Math.PI;
+
+    // ── Zoom y pxPerTile ─────────────────────────────────────────────
+    const zoomF = Math.log2((H * 0.9 * 360 * cosLat) / (range1 * 256));
+    const zoom  = Math.max(10, Math.min(17, Math.round(zoomF)));
+    const r1Tiles = range1 * Math.pow(2, zoom) / (360 * cosLat);
+    const r2Tiles = range2 * Math.pow(2, zoom) / (360 * cosLat);
+    const pxPerTile = Math.min((H * 0.9) / (r1Tiles * 256), (W * 0.9) / (r2Tiles * 256)) * 256;
+
+    // ── Cuadrícula de tiles necesaria (canvas rotado) ────────────────
+    const cTX = lng2tx(centerLng, zoom);
+    const cTY = lat2ty(centerLat, zoom);
+    const corners = (
+      [[-W/2,-H/2],[W/2,-H/2],[W/2,H/2],[-W/2,H/2]] as [number,number][]
+    ).map(([cx, cy]) => {
+      const tx = cx * Math.cos(-rotAngle) - cy * Math.sin(-rotAngle);
+      const ty = cx * Math.sin(-rotAngle) + cy * Math.cos(-rotAngle);
+      return [cTX + tx / pxPerTile, cTY + ty / pxPerTile] as [number, number];
     });
-    // Seleccionada: relleno semitransparente, borde marcado
-    drawPoly(sel.coords, "rgba(251,191,36,0.28)", "#b45309", 2.5);
+    const tileXMin = Math.floor(Math.min(...corners.map(c => c[0])));
+    const tileXMax = Math.ceil( Math.max(...corners.map(c => c[0])));
+    const tileYMin = Math.floor(Math.min(...corners.map(c => c[1])));
+    const tileYMax = Math.ceil( Math.max(...corners.map(c => c[1])));
 
-    // Atribución (requerida por Carto + OSM)
-    ctx.font = "11px sans-serif";
-    ctx.textAlign = "right"; ctx.textBaseline = "bottom";
-    ctx.fillStyle = "rgba(0,0,0,0.55)";
-    ctx.fillText("© OpenStreetMap contributors © CARTO", CW - 4, CH - 3);
+    // ── Canvas ───────────────────────────────────────────────────────
+    const canvas = document.createElement("canvas");
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#e8e8e8";
+    ctx.fillRect(0, 0, W, H);
 
-    return canvas.toDataURL("image/jpeg", 0.92);
+    ctx.save();
+    ctx.translate(W / 2, H / 2);
+    ctx.rotate(rotAngle);
+    ctx.translate(-cTX * pxPerTile, -cTY * pxPerTile);
+
+    // ── Tiles vía proxy mismo-origen (sin taint de canvas) ───────────
+    const tilePromises: Promise<void>[] = [];
+    for (let tx = tileXMin; tx <= tileXMax; tx++) {
+      for (let ty = tileYMin; ty <= tileYMax; ty++) {
+        const px = tx * pxPerTile, py = ty * pxPerTile;
+        tilePromises.push(new Promise<void>((res) => {
+          const img = new Image();
+          img.onload  = () => { ctx.drawImage(img, px, py, pxPerTile, pxPerTile); res(); };
+          img.onerror = () => res();
+          img.src = `/api/mapa-tile?z=${zoom}&x=${tx}&y=${ty}`;
+        }));
+      }
+    }
+    await Promise.all(tilePromises);
+
+    // ── Polígonos ────────────────────────────────────────────────────
+    const lw = 256 / pxPerTile;
+    for (const feature of features) {
+      const isSel = feature.selected;
+      for (const ring of feature.coords) {
+        ctx.beginPath();
+        ring.forEach(([lng, lat], i) => {
+          const x = lng2tx(lng, zoom) * pxPerTile;
+          const y = lat2ty(lat, zoom) * pxPerTile;
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        });
+        ctx.closePath();
+        ctx.fillStyle   = isSel ? "rgba(147,197,253,0.5)" : "rgba(219,234,254,0.18)";
+        ctx.fill();
+        ctx.strokeStyle = isSel ? "#1d4ed8" : "rgba(147,197,253,0.55)";
+        ctx.lineWidth   = isSel ? 3 * lw : 0.8 * lw;
+        ctx.stroke();
+      }
+    }
+
+    ctx.restore();
+
+    // ── Brújula norte ────────────────────────────────────────────────
+    const nx = W - 72, ny = 72, nr = 34;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(nx, ny, nr + 8, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255,255,255,0.88)";
+    ctx.fill();
+    ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 1; ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(nx, ny);
+    ctx.rotate(-rotAngle);
+    ctx.beginPath();
+    ctx.moveTo(0, -nr); ctx.lineTo(9, 2); ctx.lineTo(0, -2); ctx.lineTo(-9, 2);
+    ctx.closePath();
+    ctx.fillStyle = "#ef4444"; ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(0, nr); ctx.lineTo(9, -2); ctx.lineTo(0, 2); ctx.lineTo(-9, -2);
+    ctx.closePath();
+    ctx.fillStyle = "#94a3b8"; ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.fillStyle = "#1e293b";
+    ctx.font = "bold 14px sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("N", nx, ny - nr - 14);
+    ctx.restore();
+
+    return canvas.toDataURL("image/png");
   }
 
   async function generarPDF() {
@@ -440,13 +480,13 @@ export default function MapaClient() {
     doc.setFontSize(8);
     doc.text("Distrito 09 — RSBMR", W - 14, 24, { align: "right" });
 
-    // Canvas siempre 768×768 (cuadrícula 3×3) → ratio 1:1
+    // Canvas 1600×900 → ratio 16:9
     const MAP_W = W - 28;
-    const MAP_H = MAP_W; // cuadrado
+    const MAP_H = Math.round(MAP_W * (900 / 1600));
     let y = 31;
 
     if (mapImgData) {
-      doc.addImage(mapImgData, "JPEG", 14, y, MAP_W, MAP_H, undefined, "FAST");
+      doc.addImage(mapImgData, "PNG", 14, y, MAP_W, MAP_H, undefined, "FAST");
       doc.setDrawColor(209, 213, 219);
       doc.setLineWidth(0.3);
       doc.rect(14, y, MAP_W, MAP_H);

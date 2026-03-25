@@ -16,8 +16,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Parámetros inválidos" }, { status: 400 });
     }
 
-    const sub = ["a", "b", "c"][xi % 3];
-    const url = `https://${sub}.tile.openstreetmap.org/${zi}/${xi}/${yi}.png`;
+    const sub = ["a", "b", "c", "d"][xi % 4];
+    const url = `https://${sub}.basemaps.cartocdn.com/rastertiles/voyager/${zi}/${xi}/${yi}.png`;
 
     const res = await fetch(url, {
       headers: { "User-Agent": "RSBMR-Electoral-App/1.0 (internal)" },
