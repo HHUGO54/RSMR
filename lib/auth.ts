@@ -13,10 +13,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         // New login: generate fresh session token (invalidates all previous sessions)
         const sessionToken = randomUUID();
-        await prisma.user.update({
-          where: { id: user.id as string },
-          data: { sessionToken },
-        });
+        try {
+          await prisma.user.update({
+            where: { id: user.id as string },
+            data: { sessionToken },
+          });
+        } catch {
+          // DB may not have the column yet; login still proceeds
+        }
         token.id = user.id;
         token.role = (user as { role?: string }).role ?? "USER";
         token.sessionToken = sessionToken;
