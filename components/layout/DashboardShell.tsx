@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Menu } from "lucide-react";
 import { SidebarContext } from "./SidebarContext";
 import Sidebar from "./Sidebar";
+import SessionGuard from "@/components/SessionGuard";
 
 export default function DashboardShell({ children, role }: { children: React.ReactNode; role: string }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -12,6 +13,7 @@ export default function DashboardShell({ children, role }: { children: React.Rea
 
   return (
     <SidebarContext.Provider value={{ isOpen, toggle, close }}>
+      <SessionGuard />
       <div className="flex h-screen overflow-hidden bg-gray-50">
         {/* Overlay móvil */}
         {isOpen && (
