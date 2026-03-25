@@ -1,20 +1,36 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@libsql/client";
 
 export async function GET() {
   const url = process.env.DATABASE_URL;
   const hasToken = !!process.env.DATABASE_AUTH_TOKEN;
 
-  if (!url) {
-    return NextResponse.json({ ok: false, error: "DATABASE_URL no definida", url, hasToken });
+  // Test 1: @libsql/client directo
+  let libsqlOk = false;
+  let libsqlError = "";
+  try {
+    const { createClient } = await import("@libsql/client");
+    const client = createClient({ url: url!, authToken: process.env.DATABASE_AUTH_TOKEN });
+    await client.execute("SELECT 1");
+    client.close();
+    libsqlOk = true;
+  } catch (e) {
+    libsqlError = String(e);
   }
 
+  // Test 2: Prisma con adapter
+  let prismaOk = false;
+  let prismaError = "";
   try {
-    const client = createClient({ url, authToken: process.env.DATABASE_AUTH_TOKEN });
-    const result = await client.execute("SELECT email FROM User LIMIT 1");
-    client.close();
-    return NextResponse.json({ ok: true, rows: result.rows, url, hasToken });
+    const { PrismaClient } = await import("@prisma/client");
+    const { PrismaLibSql } = await import("@prisma/adapter-libsql");
+    const adapter = new PrismaLibSql({ url: url!, authToken: process.env.DATABASE_AUTH_TOKEN });
+    const prisma = new PrismaClient({ adapter });
+    await prisma.user.findFirst();
+    await prisma.$disconnect();
+    prismaOk = true;
   } catch (e) {
-    return NextResponse.json({ ok: false, error: String(e), url, hasToken });
+    prismaError = String(e);
   }
+
+  return NextResponse.json({ url, hasToken, libsqlOk, libsqlError, prismaOk, prismaError });
 }
