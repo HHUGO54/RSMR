@@ -260,7 +260,7 @@ export default function MapaClient() {
         layerRef.current!.resetStyle();
         path.setStyle({ fillColor: "#bae6fd", fillOpacity: 0.5, color: "#0284c7", weight: 2.5 });
         const bounds = (lyr as L.Polygon).getBounds?.();
-        if (bounds?.isValid()) mapRef.current!.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+        if (bounds?.isValid()) mapRef.current!.fitBounds(bounds, { padding: [4, 4] });
         setSeccionNum(num);
       }
     });
