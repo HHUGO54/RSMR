@@ -9,8 +9,9 @@ export default auth((req) => {
   const isApiRoute  = pathname.startsWith("/api/");
   const isAuthRoute = pathname.startsWith("/api/auth");
 
-  // Allow auth endpoints through unconditionally
+  // Allow auth endpoints and debug through unconditionally
   if (isAuthRoute) return;
+  if (pathname.startsWith("/api/debug")) return;
 
   // API routes: return 401 instead of redirecting
   if (isApiRoute && !isLoggedIn) {
