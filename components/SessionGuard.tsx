@@ -19,8 +19,9 @@ export default function SessionGuard() {
     async function validateSession() {
       try {
         const res = await fetch("/api/auth/validate");
+        if (!res.ok) return; // error del servidor → no deslogear
         const data = await res.json();
-        if (!data.valid) signOut({ callbackUrl: "/login" });
+        if (data.valid === false) signOut({ callbackUrl: "/login" });
       } catch {
         // si falla la red, no deslogear
       }
